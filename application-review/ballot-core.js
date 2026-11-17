@@ -1,0 +1,8 @@
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.BallotCore=factory()})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+function create(names,now){if(!Array.isArray(names)||!names.length)throw Error('请先设置理事名单');return {version:1,id:'review-'+now,status:'open',startedAt:now,deadline:now+86400000,roster:names.map((name,i)=>({id:'member-'+i,name})),votes:{},history:[],archive:null}}
+function count(s){const a=Object.values(s.votes);return {yes:a.filter(v=>v.choice==='yes').length,no:a.filter(v=>v.choice==='no').length,skip:a.filter(v=>v.choice==='skip').length,total:s.roster.length}}
+function settle(s,now){if(s.status!=='open')return false;const c=count(s),participated=c.yes+c.no;const early=participated>s.roster.length*2/3;if(!early&&now<s.deadline)return false;s.status='archived';s.archive=JSON.parse(JSON.stringify({id:s.id,applicant:'吴＊远（阿＊）',finishedAt:now,startedAt:s.startedAt,deadline:s.deadline,reason:early?'有效参与人数超过全体理事的 2/3':'24 小时到期',result:c.yes===c.no?'待客服跟进':c.yes>c.no?'通过':'不通过',counts:c,roster:s.roster,votes:s.votes,history:s.history,rules:{skipCountsAsParticipation:false,allowChangeBeforeClose:true,timeoutMinimumParticipation:null}}));return true}
+function vote(s,memberId,choice,comment,now){settle(s,now);if(s.status!=='open')throw Error('本轮已结束，不能再提交或修改');if(!s.roster.some(m=>m.id===memberId))throw Error('无理事投票权限');if(!['yes','no','skip'].includes(choice))throw Error('请选择判断');const before=s.votes[memberId]||null;const next={memberId,choice,comment:String(comment||'').trim().slice(0,300),at:now};s.votes[memberId]=next;s.history.push({memberId,before,after:{...next},at:now});settle(s,now);return s}
+return {create,count,settle,vote};
+});
